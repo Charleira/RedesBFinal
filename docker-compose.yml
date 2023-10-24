@@ -1,0 +1,86 @@
+version: '3'
+
+services:
+ web:
+    image: nginx:latest
+    command: sh -c "apt-get update && apt-get install -y php-fpm && sed -i 's/index index.html index.htm;/index index.php index.html index.htm;/g' /etc/nginx/conf.d/default.conf && echo '<?php phpinfo(); ?>' > /usr/share/nginx/html/index.php && nginx -g 'daemon off;'"
+    ports:
+      - 80:80
+    volumes:
+      - ./logs:/var/log/nginx
+    networks:
+      - localhost
+    depends_on:
+      - db
+ db:
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: todos
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - localhost
+ phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: secret
+    ports:
+      - 127.0.0.1:8080:80
+    networks:
+      - localhost
+    depends_on:
+      - db
+ elasticsearch:
+    image: elasticsearch:8.10.2
+    environment:
+      discovery.type: single-node
+    ports:
+      - 127.0.0.1:9200:9200
+      - 127.0.0.1:5601:5601
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - localhost
+ rabbitmq:
+    image: rabbitmq:latest
+    ports:
+      - 127.0.0.1:5672:5672
+      - 127.0.0.1:15672:15672
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - localhost
+
+ grafana:
+   image: grafana/grafana:latest
+   container_name: grafana
+   ports:
+     - "3000:3000"
+   networks:
+     - localhost
+   depends_on:
+     - web
+     - db
+     - phpmyadmin
+     - elasticsearch
+     - rabbitmq
+
+networks:
+ app-net:
+   driver: bridge
+   ipam:
+     driver: default
+     config:
+       - subnet: 172.16.238.0/24
+
+ localhost:
+
+volumes:
+ db-data:
+ es-data:
+ rabbitmq-data:
+
